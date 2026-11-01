@@ -1,0 +1,47 @@
+
+name: Casper Ticket Watcher
+
+on:
+  schedule:
+    - cron: "*/5 * * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: casper-ticket-watcher
+  cancel-in-progress: false
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Repository laden
+        uses: actions/checkout@v6
+
+      - name: Python installieren
+        uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+
+      - name: Status-Cache laden
+        uses: actions/cache/restore@v4
+        with:
+          path: ticket_state.json
+          key: casper-state-${{ github.run_id }}
+          restore-keys: |
+            casper-state-
+
+      - name: Tickets prüfen
+        env:
+          NTFY_TOPIC: ${{ secrets.NTFY_TOPIC }}
+          NTFY_SERVER: ${{ secrets.NTFY_SERVER }}
+        run: python watcher.py
+
+      - name: Status-Cache speichern
+        if: always()
+        uses: actions/cache/save@v4
+        with:
+          path: ticket_state.json
+          key: casper-state-${{ github.run_id }}
